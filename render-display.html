@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Video to Desmos</title>
 
-    <script src="https://www.desmos.com/api/v1.9/calculator.js?apiKey=dcb31709b452b1cf9dc26972add0fda6"></script>
+    <script src="https://www.desmos.com/api/v1.10/calculator.js?apiKey=<your API key here>"></script>
 </head>
 <body style="margin: 0;">
     <div id="updateInfo" style="margin-left: 25px; margin-bottom: 25px;"></div>
-    <button value="Run" style="margin-left: 25px; margin-bottom: 25px;" onclick="run()">Run</button>
+    <button value="Run" style="margin-left: 25px; margin-bottom: 25px;" onclick="getSingleImage()">Run for Single Frame</button>
+    <button value="Run" style="margin-left: 25px; margin-bottom: 25px;" onclick="renderVideo()">Run for Video</button>
     <div id="calculator" style="width: 2000px; height: 1000px;"></div>
     <div id="videoContainer"></div>
     <script src="frontend.js"></script>

@@ -1,103 +1,68 @@
 const elt = document.getElementById('calculator');
-const calculator = Desmos.GraphingCalculator(elt, {lockViewport: true, expressions: false, settingsMenu: false});
-const videoSource = "..\\test_videos\\Celeste 2022-07-20 16-51-19_Trim.mp4";
-graphColor = "rgb(0, 0, 111)";
-// colors used in my example videos:
-// furina: (0, 0, 111), charlotte: (209, 29, 83), navia: (179, 119, 0), raiden: (128, 0, 128)
+const calculator = Desmos.GraphingCalculator(elt, {lockViewport: false, expressions: false, settingsMenu: false});
+const blankState = calculator.getState();
 
 const canvas = document.createElement("canvas");
 const ctx = canvas.getContext("2d");
 
-let image = new Image();
-
-const init = () => {
-    let video = document.createElement("video");
-    video.src = videoSource;
-    video.type = "video/mp4";
-    video.controls = true;
-    video.id = "video";
-    document.getElementById("videoContainer").appendChild(video);
-
-    // code I stole to load the video fully
-    var req = new XMLHttpRequest();
-    req.open('GET', videoSource, true);
-    req.responseType = 'blob';
-
-    req.onload = function() {
-        // Onload is triggered even on 404
-        // so we need to check the status code
-        if (this.status === 200) {
-            var videoBlob = this.response;
-            var vid = URL.createObjectURL(videoBlob); // IE10+
-            // Video is now downloaded
-            // and we can set it as source on the video element
-            video.src = vid;
-        }
-    }
-    req.onerror = function() {
-    // Error
-    }
-
-    req.send();
-    // end stolen code section (credit to https://dinbror.dk/blog/how-to-preload-entire-html5-video-before-play-solved/)
-
-    video.addEventListener("loadeddata", () => {
-        let videoInfo = document.getElementById("video").getBoundingClientRect();
-
-        width = videoInfo["width"];
-        height = videoInfo["height"];
-
-        elt.style.width = width + "px";
-        elt.style.height = height + "px";
-
-        calculator.resize();
-
-        calculator.setMathBounds({
-            left: -width*0.1,
-            right: width*1.1,
-            bottom: -height*0.1,
-            top: height*1.1
-        });
-
-        calculatorBlankState = calculator.getState();
-    });
-}
-
-const run = () => {
-    fetch('http://localhost:5000/initialize', {
-        method: 'POST',
+const renderVideo = () => {
+    fetch('http://localhost:5000/renderFullVideo', {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         },
     })
     .then(response => response.json())
     .then(data => {
-        if (data["image"] === "video complete") {
-            finishRecording();
-            return null;
-        } else if (data["image"] === "error") {
-            run();
-        } else {
-            document.getElementById("updateInfo").innerText = data["updateInfo"];
-            loadFrame(data);
-        }
+        executeFrameLoad(data);
     })
     .catch(error => {
         console.error('Error:', error);
-        run();
+        renderVideo();
     });
 }
 
-const loadFrame = (frame) => {
-    calculator.setState(calculatorBlankState);
-    calculator.clearHistory();
-    for (let j = 0; j < frame['image']['x'].length; j++) {
-        calculator.setExpression({id: "points" + j, latex: "([" + frame['image']['x'][j] + "], [" + frame['image']['y'][j] + "])", color: graphColor, pointSize: "2", pointOpacity: "1", secret: true, lines: false, lineWidth: 1, lineOpacity: 1});
+
+const init = () => {
+
+}
+
+
+const executeFrameLoad = (data) => {
+    // console.log("data", data);
+    document.getElementById("updateInfo").innerText = data["updateInfo"];
+    if (data["isFinished"]) {
+        return
     }
+    data = data["image"]
+    elt.style.width = (2000) + "px";
+    elt.style.height = (Math.round(data['imgData']['height']/data['imgData']['width']*2000)) + "px";
+
+    calculator.resize();
+    
+    calculator.setMathBounds({
+        left: -0.1*data['imgData']['width'],
+        right: 1.1*data['imgData']['width'],
+        bottom: -0.1*data['imgData']['height'],
+        top: 1.1*data['imgData']['height']
+    });
+
+    let state = calculator.getState();
+    for (let i = 0; i < data['polygons'].length; i++) {
+        state['expressions']['list'][i] = {type: "expression", id: "polygon" + (i + 1), latex: data['polygons'][i]['polygon'], color: data['polygons'][i]['color'], fillOpacity: "1", lines: false};
+    }
+    let bytes = (new Blob([JSON.stringify(state)]).size)
+    // console.log("" + bytes + " bytes recorded - (" + (bytes/3500000 * 100) + "% of maximum)");
+
+    calculator.setState(blankState);
+    calculator.setState(state);
+
     calculator.asyncScreenshot(returnFrame);
 }
 
+
 const returnFrame = (frame) => {
+    let image = new Image();
     image.src = frame;
     image.onload = () => {
         canvas.width = image.width;
@@ -105,7 +70,7 @@ const returnFrame = (frame) => {
 
         ctx.drawImage(image, 0, 0);
 
-        fetch('http://localhost:5000/process_new_frame', {
+        fetch('http://localhost:5000/saveNewFrame', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -114,7 +79,8 @@ const returnFrame = (frame) => {
         })
         .then(response => response.json())
         .then(data => {
-            run();
+            calculator.setBlank();
+            renderVideo();
         })
         .catch(error => {
             console.error('Error:', error);
@@ -123,21 +89,37 @@ const returnFrame = (frame) => {
     }
 }
 
-const finishRecording = () => {
-    fetch('http://localhost:5000/end_recording', {
-        method: 'POST',
+
+const getSingleImage = () => {
+    fetch('http://localhost:5000/getData', {
+        method: 'GET',
         headers: {
             'Content-Type': 'application/json',
         },
-        body: JSON.stringify('')
     })
     .then(response => response.json())
     .then(data => {
-        console.log('Response:', data);
+        elt.style.width = (2000) + "px";
+        elt.style.height = (Math.round(data['imgData']['height']/data['imgData']['width']*2000)) + "px";
+
+        calculator.resize();
+        
+        calculator.setMathBounds({
+            left: -0.1*data['imgData']['width'],
+            right: 1.1*data['imgData']['width'],
+            bottom: -0.1*data['imgData']['height'],
+            top: 1.1*data['imgData']['height']
+        });
+
+        let state = calculator.getState();
+        for (let i = 0; i < data['polygons'].length; i++) {
+            state['expressions']['list'][i] = {type: "expression", id: "polygon" + (i + 1), latex: data['polygons'][i]['polygon'], color: data['polygons'][i]['color'], fillOpacity: "1", lines: false};
+        }
+        let bytes = (new Blob([JSON.stringify(state)]).size)
+        // console.log("" + bytes + " bytes recorded - (" + (bytes/3500000 * 100) + "% of maximum)");
+
+        calculator.setState(state);
     })
-    .catch(error => {
-        console.error('Error:', error);
-    });
 }
 
 init();

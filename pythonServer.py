@@ -154,7 +154,7 @@ def generateStats():
     projectedTime = (deltaTime / 3600)/(frame_number / finalFrameNum)
     projectedRemaining = projectedTime - (deltaTime / 3600)
     updateString = f"""
-    Loading frame #{frame_number} of {frame_count}, approx. {round(100*100*frame_number / frame_count) / 100}% complete. {round(100*(100 - (100*frame_number / frame_count))) / 100}% remaining.
+    Loading frame #{frame_number} of {finalFrameNum}, approx. {round(100*100*frame_number / finalFrameNum) / 100}% complete. {round(100*(100 - (100*frame_number / finalFrameNum))) / 100}% remaining.
     Time since last frame loaded: {round(frameDeltaTime)} seconds
     Average time per frame process: {round(deltaFrame*100*deltaTime / frame_number) / 100} seconds
     Elapsed time: {int(deltaTime / 3600)} hour(s), {int(60*((deltaTime / 3600) % 1))} minutes, {int(60*(60*((deltaTime / 3600) % 1) % 1))} seconds. 
